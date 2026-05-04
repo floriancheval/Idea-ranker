@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feature Ranker — Facilitator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F7F5F0;--surface:#FFFFFF;--surface2:#F0EDE6;--border:#E2DDD6;
+    --text:#1A1814;--text2:#6B665E;--text3:#9E998F;
+    --accent:#2D5BE3;--accent-light:#EEF2FD;--accent-dark:#1A3A9E;
+    --success:#1A7A4A;--success-light:#E8F5EE;
+    --warn:#B85C00;--warn-light:#FEF3E8;
+    --danger:#C02020;--danger-light:#FDEDED;
+    --radius:12px;--radius-sm:8px;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+
+  /* NAV */
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+  .nav-brand{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;letter-spacing:-.02em}
+  .nav-brand span{color:var(--accent)}
+  .nav-right{display:flex;align-items:center;gap:10px}
+  .admin-badge{background:var(--warn-light);color:var(--warn);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;letter-spacing:.04em;text-transform:uppercase}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background .3s}
+  .status-dot.live{background:var(--success);box-shadow:0 0 0 3px var(--success-light)}
+
+  /* STEP INDICATOR */
+  .steps{display:flex;align-items:center;gap:0;margin-bottom:2rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .step{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:500;color:var(--text3);border-right:1px solid var(--border);cursor:default;transition:all .2s;position:relative}
+  .step:last-child{border-right:none}
+  .step.active{background:var(--accent);color:white}
+  .step.done{background:var(--success-light);color:var(--success)}
+  .step-num{display:block;font-family:'DM Mono',monospace;font-size:10px;margin-bottom:2px;opacity:.7}
+
+  /* PAGE */
+  .page{padding:2rem 1.5rem;max-width:780px;margin:0 auto}
+  .pane{display:none}
+  .pane.active{display:block}
+
+  /* CARDS */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+  .card-title{font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
+
+  /* FORMS */
+  input[type=text]{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+  input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,91,227,.12);background:var(--surface)}
+  .row{display:flex;gap:8px;align-items:flex-start}
+  .row input{flex:1}
+
+  /* BUTTONS */
+  .btn{padding:9px 18px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap}
+  .btn:hover{background:var(--surface2)}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--accent);color:white;border-color:var(--accent)}
+  .btn-primary:hover{background:var(--accent-dark)}
+  .btn-danger{background:var(--danger-light);color:var(--danger);border-color:#F5BEBE}
+  .btn-danger:hover{background:#FAD5D5}
+  .btn-sm{padding:5px 12px;font-size:12px}
+
+  /* BIG ACTION BUTTON */
+  .big-btn{width:100%;padding:16px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;margin-top:1rem}
+  .big-btn:active{transform:scale(.98)}
+  .big-btn-green{background:var(--success);color:white;box-shadow:0 2px 8px rgba(26,122,74,.25)}
+  .big-btn-green:hover{background:#156b3f;box-shadow:0 4px 16px rgba(26,122,74,.35)}
+  .big-btn-orange{background:var(--warn);color:white;box-shadow:0 2px 8px rgba(184,92,0,.25)}
+  .big-btn-orange:hover{background:#9e4f00}
+  .big-btn-blue{background:var(--accent);color:white;box-shadow:0 2px 8px rgba(45,91,227,.25)}
+  .big-btn-blue:hover{background:var(--accent-dark)}
+  .big-btn-danger{background:var(--danger);color:white;box-shadow:0 2px 8px rgba(192,32,32,.2)}
+  .big-btn-danger:hover{background:#a01a1a}
+
+  /* BADGE */
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .badge-blue{background:var(--accent-light);color:var(--accent)}
+  .badge-green{background:var(--success-light);color:var(--success)}
+  .badge-orange{background:var(--warn-light);color:var(--warn)}
+
+  /* STATS ROW */
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center;box-shadow:var(--shadow)}
+  .stat-value{font-size:28px;font-weight:600;font-family:'DM Mono',monospace}
+  .stat-label{font-size:12px;color:var(--text3);margin-top:2px}
+
+  /* PHASE CARD WITH STATS */
+  .phase-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+  .phase-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+  .phase-card-title{font-size:16px;font-weight:600}
+  .phase-inline-stats{display:flex;gap:16px;align-items:center}
+  .inline-stat{display:flex;flex-direction:column;align-items:center}
+  .inline-stat-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:600;color:var(--text);line-height:1}
+  .inline-stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+  /* QR + URL DISPLAY */
+  .launch-display{background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;box-shadow:var(--shadow);text-align:center}
+  .launch-display img{display:block;margin:0 auto 1rem;border-radius:var(--radius-sm)}
+  .url-big{font-family:'DM Mono',monospace;font-size:22px;font-weight:600;color:var(--accent);letter-spacing:-.02em;margin-bottom:.5rem;word-break:break-all}
+  .url-full{font-size:12px;color:var(--text3);margin-bottom:1rem}
+  .launch-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+  /* IDEAS LIST */
+  .idea-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+  .idea-row:first-child{border-top:none}
+  .idea-row-title{font-weight:500;color:var(--text)}
+  .idea-row-meta{font-size:12px;color:var(--text3)}
+  .idea-row-votes{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--accent)}
+
+  /* RESULTS BARS */
+  .result-item{margin-bottom:14px}
+  .result-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .result-text{font-size:14px;font-weight:500}
+  .result-text.winner::before{content:'🥇 '}
+  .result-score{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2)}
+  .result-track{height:10px;background:var(--surface2);border-radius:5px;overflow:hidden}
+  .result-fill{height:100%;border-radius:5px;background:var(--accent);transition:width .6s cubic-bezier(.4,0,.2,1)}
+
+  /* ITEM ROW */
+  .item-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--border);font-size:13px}
+
+  /* DANGER ZONE */
+  .danger-zone{border:1px solid #F5BEBE;border-radius:var(--radius);padding:1.25rem 1.5rem;background:var(--danger-light);margin-top:1rem}
+  .danger-title{font-size:13px;font-weight:600;color:var(--danger);margin-bottom:4px}
+  .danger-desc{font-size:13px;color:#8B3030;margin-bottom:12px;line-height:1.5}
+
+  /* MODAL */
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;padding:1rem}
+  .modal-backdrop.open{display:flex}
+  .modal{background:var(--surface);border-radius:var(--radius);padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.18);animation:modalIn .2s ease}
+  @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .modal h3{font-size:16px;font-weight:600;margin-bottom:8px}
+  .modal p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:1.25rem}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+  .empty{text-align:center;padding:1.5rem;color:var(--text3);font-size:14px}
+  .divider{border:none;border-top:1px solid var(--border);margin:1.25rem 0}
+  .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:white;padding:9px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:540px){
+    .page{padding:1.25rem 1rem}
+    .stats-row{grid-template-columns:repeat(3,1fr)}
+    .stat-value{font-size:22px}
+    .step{font-size:11px;padding:10px 4px}
+    .url-big{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">feature<span>.</span>ranker</div>
+  <div class="nav-right">
+    <span class="admin-badge">Facilitator</span>
+    <div class="status-dot" id="status-dot"></div>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- STEP INDICATOR -->
+  <div class="steps">
+    <div class="step active" id="step-0" onclick="goToStep(0)" style="cursor:pointer"><span class="step-num">01</span>Setup</div>
+    <div class="step" id="step-1" onclick="goToStep(1)" style="cursor:pointer"><span class="step-num">02</span>Ideation</div>
+    <div class="step" id="step-2" onclick="goToStep(2)" style="cursor:pointer"><span class="step-num">03</span>Vote</div>
+    <div class="step" id="step-3" onclick="goToStep(3)" style="cursor:pointer"><span class="step-num">04</span>Results</div>
+    <div class="step" id="step-4" onclick="goToStep(4)" style="cursor:pointer"><span class="step-num">05</span>Reset</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANE 0 — SETUP
+  ════════════════════════════════════════════ -->
+  <div class="pane active" id="pane-0">
+    <div class="card">
+      <div class="card-title">Session name</div>
+      <div class="row">
+        <input type="text" id="session-name" value="Strategy Workshop 2025" placeholder="Session name">
+        <button class="btn" onclick="saveName()">Save</button>
+      </div>
+      <div style="font-size:13px;color:var(--text3);margin-top:10px">Virtual budget per participant: <strong style="color:var(--text)">$100</strong></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Participant URL</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Create a short link pointing to your <strong>index.html</strong> (e.g. on <a href="https://miniurl.com" target="_blank" style="color:var(--accent)">miniurl.com</a>) then paste it here.</div>
+      <input type="text" id="short-url-input" placeholder="E.g. https://miniurl.com/my-workshop">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pre-load ideas <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">(optional)</span></div>
+      <div class="row" style="margin-bottom:8px">
+        <input type="text" id="admin-idea-title" placeholder="Title (max 40 chars)" maxlength="40">
+        <button class="btn btn-primary" onclick="addIdea()">Add</button>
+      </div>
+      <input type="text" id="admin-idea-desc" placeholder="Details (optional)" style="margin-bottom:0">
+      <div id="admin-ideas-list" style="margin-top:8px"></div>
+    </div>
+
+    <button class="big-btn big-btn-green" onclick="startSession()">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M8 7l5 3-5 3V7z" fill="white"/></svg>
+      Start session
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANE 1 — IDEATION
+  ════════════════════════════════════════════ -->
+  <div class="pane" id="pane-1">
+
+    <!-- QR + URL -->
+    <div class="launch-display">
+      <div class="url-big" id="short-url">—</div>
+      <div class="url-full" id="full-url" style="display:none"></div>
+      <canvas id="qr-canvas" width="200" height="200" style="display:block;margin:0 auto 1rem;border-radius:8px"></canvas>
+      <div class="launch-actions">
+        <button class="btn" onclick="copyURL()">Copy URL</button>
+        <button class="btn" onclick="window.open(document.getElementById('short-url').textContent,'_blank')">Open participant page</button>
+      </div>
+    </div>
+
+    <!-- Phase card with live stats -->
+    <div class="phase-card">
+      <div class="phase-card-header">
+        <div>
+          <div class="phase-card-title">Ideation phase</div>
+          <span class="badge badge-blue" style="margin-top:4px">Open</span>
+        </div>
+        <div class="phase-inline-stats">
+          <div class="inline-stat">
+            <span class="inline-stat-val" id="i-connected">0</span>
+            <span class="inline-stat-label">online</span>
+          </div>
+          <div style="width:1px;height:32px;background:var(--border)"></div>
+          <div class="inline-stat">
+            <span class="inline-stat-val" id="i-ideas">0</span>
+            <span class="inline-stat-label">ideas</span>
+          </div>
+        </div>
+      </div>
+      <div id="ideation-list"><div class="empty">No ideas yet.</div></div>
+    </div>
+
+    <button class="big-btn big-btn-orange" onclick="moveToVote()">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10h12M12 6l4 4-4 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Close ideation — move to vote
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANE 2 — VOTE
+  ════════════════════════════════════════════ -->
+  <div class="pane" id="pane-2">
+
+    <div class="phase-card">
+      <div class="phase-card-header">
+        <div>
+          <div class="phase-card-title">Voting phase</div>
+          <span class="badge badge-orange" style="margin-top:4px">Open</span>
+        </div>
+        <div class="phase-inline-stats">
+          <div class="inline-stat">
+            <span class="inline-stat-val" id="v-connected">0</span>
+            <span class="inline-stat-label">online</span>
+          </div>
+          <div style="width:1px;height:32px;background:var(--border)"></div>
+          <div class="inline-stat">
+            <span class="inline-stat-val" id="v-voted">0</span>
+            <span class="inline-stat-label">voted</span>
+          </div>
+          <div style="width:1px;height:32px;background:var(--border)"></div>
+          <div class="inline-stat">
+            <span class="inline-stat-val" id="v-spent">$0</span>
+            <span class="inline-stat-label">spent</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:.75rem;padding:.75rem 1rem;background:var(--warn-light);border-radius:var(--radius-sm);font-size:13px;color:var(--warn);font-weight:500;">
+        Results are hidden while voting is open.
+      </div>
+      <div id="vote-ideas-wall" style="columns:3;column-gap:8px;margin-top:1rem"></div>
+    </div>
+
+    <button class="big-btn big-btn-blue" onclick="closeVote()">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-8" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Close vote — view results
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANE 3 — RESULTS
+  ════════════════════════════════════════════ -->
+  <div class="pane" id="pane-3">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="r-participants">0</div><div class="stat-label">Participants</div></div>
+      <div class="stat-card"><div class="stat-value" id="r-ideas">0</div><div class="stat-label">Ideas</div></div>
+      <div class="stat-card"><div class="stat-value" id="r-voted">0</div><div class="stat-label">Voted</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Final ranking</div>
+      <div id="results-bars"><div class="empty">No votes yet.</div></div>
+    </div>
+
+    <button class="big-btn big-btn-blue" onclick="exportCSV()" style="margin-top:0">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M6 9l4 4 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15h12" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Download results (CSV)
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANE 4 — RESET
+  ════════════════════════════════════════════ -->
+  <div class="pane" id="pane-4">
+    <div class="card">
+      <div class="card-title">Session complete</div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6">The session "<strong id="reset-session-name"></strong>" is now closed. You can download the results one more time before resetting.</p>
+      <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="exportCSV()">Download CSV</button>
+        <button class="btn" onclick="goToStep(3)">Back to results</button>
+      </div>
+    </div>
+
+    <div class="danger-zone">
+      <div class="danger-title">Reset everything</div>
+      <div class="danger-desc">Clears all ideas, votes, and resets the session to setup. This cannot be undone.</div>
+      <button class="btn btn-danger" onclick="openResetModal()">
+        Reset session
+      </button>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- ADMIN IDEA DETAIL MODAL -->
+<div class="modal-backdrop" id="admin-idea-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 style="font-size:13px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Idea</h3>
+      <button class="modal-close" onclick="document.getElementById('admin-idea-modal').classList.remove('open')">✕</button>
+    </div>
+    <div style="font-size:17px;font-weight:600;margin-bottom:4px" id="aim-title"></div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:1rem" id="aim-author"></div>
+    <div id="aim-desc"></div>
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--text3)">Facilitator action</span>
+      <button class="btn btn-danger" id="aim-delete-btn" onclick="confirmDeleteIdea()">Delete this idea</button>
+    </div>
+  </div>
+</div>
+
+<!-- IDEA STATS MODAL -->
+<div class="modal-backdrop" id="stats-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="stats-modal-title" style="font-size:15px"></h3>
+      <button class="modal-close" onclick="document.getElementById('stats-modal').classList.remove('open')">✕</button>
+    </div>
+    <div id="stats-modal-body"></div>
+  </div>
+</div>
+
+<!-- RESET MODAL -->
+<div class="modal-backdrop" id="reset-modal">
+  <div class="modal">
+    <h3>Reset everything?</h3>
+    <p>All ideas and votes will be permanently deleted. The session will return to setup.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmReset()">Yes, reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyBrvrdhIBm0Q9PmPar5BaVpvaCUV9cgH6c",
+  authDomain:"feature-ranker.firebaseapp.com",
+  databaseURL:"https://feature-ranker-default-rtdb.firebaseio.com",
+  projectId:"feature-ranker",
+  storageBucket:"feature-ranker.firebasestorage.app",
+  messagingSenderId:"950376083431",
+  appId:"1:950376083431:web:7af89a968d2d5b0fc81742"
+});
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+const db=firebase.database();
+const sessionRef=db.ref('session');
+
+let state={name:'',phase:'setup',ideas:{},participants:0,votedCount:0};
+let currentStep=0;
+
+// ── PRESENCE ─────────────────────────────────────────────
+db.ref('presence').on('value',snap=>{
+  const n=snap.numChildren()||0;
+  document.getElementById('i-connected').textContent=n;
+  document.getElementById('v-connected').textContent=n;
+});
+
+// ── FIREBASE SYNC ────────────────────────────────────────
+sessionRef.on('value',snap=>{
+  const d=snap.val()||{};
+  state={
+    name:d.name||'Feature Ranker',
+    phase:d.phase||'setup',
+    ideas:d.ideas||{},
+    participants:d.participants||0,
+    votedCount:d.votedCount||0,
+    shortUrl:d.shortUrl||''
+  };
+  document.getElementById('status-dot').className='status-dot live';
+  syncStepFromPhase();
+  renderCurrentPane();
+},()=>{document.getElementById('status-dot').className='status-dot';});
+
+function syncStepFromPhase(){
+  const map={setup:0,ideas:1,vote:2,closed:3,done:4};
+  const s=map[state.phase]??0;
+  if(s!==currentStep) goToStep(s,true);
+}
+
+// ── STEP NAVIGATION ───────────────────────────────────────
+function goToStep(n,silent){
+  currentStep=n;
+  document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('active',i===n));
+  document.querySelectorAll('.step').forEach((s,i)=>{
+    s.classList.remove('active','done');
+    if(i===n) s.classList.add('active');
+    else if(i<n) s.classList.add('done');
+  });
+  if(!silent) renderCurrentPane();
+}
+
+function renderCurrentPane(){
+  if(currentStep===0) renderSetup();
+  if(currentStep===1) renderIdeation();
+  if(currentStep===2) renderVotePane();
+  if(currentStep===3) renderResults();
+  if(currentStep===4) renderResetPane();
+}
+
+// ── PANE 0: SETUP ────────────────────────────────────────
+function renderSetup(){
+  document.getElementById('session-name').value=state.name;
+  if(state.shortUrl) document.getElementById('short-url-input').value=state.shortUrl;
+  renderAdminIdeas();
+}
+
+function saveName(){
+  const n=document.getElementById('session-name').value.trim();
+  if(!n)return;
+  sessionRef.update({name:n});
+  toast('Saved');
+}
+
+function addIdea(){
+  const title=document.getElementById('admin-idea-title').value.trim();
+  const desc=document.getElementById('admin-idea-desc').value.trim();
+  if(!title)return;
+  const id=Date.now().toString();
+  sessionRef.child('ideas').child(id).set({id,title,desc,author:'Facilitator',votes:0});
+  document.getElementById('admin-idea-title').value='';
+  document.getElementById('admin-idea-desc').value='';
+}
+
+function removeIdea(id){sessionRef.child('ideas').child(id).remove();}
+
+let adminIdeaModalId=null;
+
+function openAdminIdeaModal(id){
+  const i=state.ideas[id];
+  if(!i)return;
+  adminIdeaModalId=id;
+  document.getElementById('aim-title').textContent=i.title;
+  document.getElementById('aim-author').textContent='by '+i.author;
+  document.getElementById('aim-desc').innerHTML=i.desc
+    ?`<div style="font-size:14px;color:var(--text2);background:var(--bg);border-radius:var(--radius-sm);padding:.875rem 1rem;line-height:1.6">${esc(i.desc)}</div>`
+    :'<div style="font-size:14px;color:var(--text3);font-style:italic">No additional details.</div>';
+  document.getElementById('admin-idea-modal').classList.add('open');
+}
+
+function confirmDeleteIdea(){
+  if(!adminIdeaModalId)return;
+  if(!confirm('Delete this idea? This cannot be undone.'))return;
+  removeIdea(adminIdeaModalId);
+  document.getElementById('admin-idea-modal').classList.remove('open');
+  adminIdeaModalId=null;
+  toast('Idea deleted.');
+}
+
+document.getElementById('admin-idea-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('admin-idea-modal'))
+    document.getElementById('admin-idea-modal').classList.remove('open');
+});
+
+function renderAdminIdeas(){
+  const ideas=Object.values(state.ideas);
+  const el=document.getElementById('admin-ideas-list');
+  if(!ideas.length){el.innerHTML='';return;}
+  el.innerHTML=ideas.map(i=>`
+    <div class="item-row" style="cursor:pointer" onclick="openAdminIdeaModal('${i.id}')">
+      <span><strong>${esc(i.title)}</strong>${i.desc?' — <span style="color:var(--text3)">'+esc(i.desc)+'</span>':''}</span>
+      <span style="font-size:12px;color:var(--text3)">${esc(i.author)}</span>
+    </div>`).join('');
+}
+
+// ── PANE 1: IDEATION ─────────────────────────────────────
+function renderIdeation(){
+  const ideas=Object.values(state.ideas);
+  document.getElementById('i-ideas').textContent=ideas.length;
+  const el=document.getElementById('ideation-list');
+  if(!ideas.length){el.innerHTML='<div class="empty">No ideas yet.</div>';return;}
+  el.innerHTML=ideas.map(i=>`
+    <div class="idea-row" style="cursor:pointer" onclick="openAdminIdeaModal('${i.id}')">
+      <div>
+        <div class="idea-row-title">${esc(i.title)}</div>
+        ${i.desc?`<div class="idea-row-meta">${esc(i.desc)}</div>`:''}
+      </div>
+      <span style="font-size:12px;color:var(--text3)">${esc(i.author)}</span>
+    </div>`).join('');
+}
+
+function moveToVote(){
+  if(!Object.keys(state.ideas).length){toast('Add at least one idea first.');return;}
+  sessionRef.update({phase:'vote'});
+}
+
+// ── PANE 2: VOTE ─────────────────────────────────────────
+function renderVotePane(){
+  const ideas=Object.values(state.ideas);
+  const totalSpent=ideas.reduce((s,i)=>s+(i.votes||0),0);
+  document.getElementById('v-voted').textContent=state.votedCount||0;
+  document.getElementById('v-spent').textContent='$'+totalSpent;
+
+  const wall=document.getElementById('vote-ideas-wall');
+  if(!ideas.length){wall.innerHTML='<div class="empty" style="column-span:all">No ideas yet.</div>';return;}
+  wall.innerHTML=ideas.map(i=>`
+    <div style="break-inside:avoid;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-bottom:8px;box-shadow:var(--shadow)">
+      <div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.35">${esc(i.title)}</div>
+      ${i.desc?`<div style="font-size:11px;color:var(--text2);margin-top:4px;line-height:1.4">${esc(i.desc)}</div>`:''}
+      <div style="font-size:11px;color:var(--text3);margin-top:5px">${esc(i.author)}</div>
+    </div>`).join('');
+}
+
+function closeVote(){
+  sessionRef.update({phase:'closed'});
+}
+
+// ── PANE 3: RESULTS ───────────────────────────────────────
+function renderResults(){
+  const ideas=Object.values(state.ideas).sort((a,b)=>(b.votes||0)-(a.votes||0));
+  const total=ideas.reduce((s,i)=>s+(i.votes||0),0);
+  document.getElementById('r-participants').textContent=state.participants;
+  document.getElementById('r-ideas').textContent=ideas.length;
+  document.getElementById('r-voted').textContent=state.votedCount||0;
+  const el=document.getElementById('results-bars');
+  if(!ideas.length||total===0){el.innerHTML='<div class="empty">No votes recorded.</div>';return;}
+  const max=ideas[0].votes||1;
+  el.innerHTML=ideas.map((i,idx)=>`
+    <div class="result-item" onclick="showIdeaStats('${i.id}')" style="cursor:pointer;padding:8px;border-radius:var(--radius-sm);transition:background .15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <div class="result-header">
+        <span class="result-text ${idx===0?'winner':''}">${esc(i.title)}</span>
+        <span class="result-score">$${i.votes||0} · ${Math.round((i.votes||0)/total*100)}%</span>
+      </div>
+      <div class="result-track"><div class="result-fill" style="width:${Math.round((i.votes||0)/max*100)}%"></div></div>
+    </div>`).join('');
+  // Move to reset step after showing results
+  if(state.phase==='closed'&&currentStep===3){
+    // show download button
+  }
+}
+
+// ── PANE 4: RESET ─────────────────────────────────────────
+function renderResetPane(){
+  document.getElementById('reset-session-name').textContent=state.name;
+}
+
+// ── EXPORT ────────────────────────────────────────────────
+function exportCSV(){
+  const ideas=Object.values(state.ideas).sort((a,b)=>(b.votes||0)-(a.votes||0));
+  const total=ideas.reduce((s,i)=>s+(i.votes||0),0);
+  const date=new Date().toLocaleDateString('en-US');
+  let csv=`Session,${state.name}\nDate,${date}\nParticipants,${state.participants}\nVoted,${state.votedCount||0}\n\nRank,Title,Details,Author,Votes ($),Share (%)\n`;
+  ideas.forEach((idea,idx)=>{
+    const pct=total>0?Math.round((idea.votes||0)/total*100):0;
+    csv+=`${idx+1},"${idea.title}","${idea.desc||''}","${idea.author}",${idea.votes||0},${pct}%\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`${state.name.replace(/\s+/g,'-').toLowerCase()}_results.csv`;
+  a.click();URL.revokeObjectURL(url);
+  toast('CSV downloaded!');
+}
+
+// ── RESET ─────────────────────────────────────────────────
+function openResetModal(){document.getElementById('reset-modal').classList.add('open');}
+function closeModal(){document.getElementById('reset-modal').classList.remove('open');}
+function confirmReset(){
+  sessionRef.set({name:state.name,phase:'setup',ideas:null,participants:0,votedCount:0,sessionId:'s_'+Date.now().toString(36)});
+  closeModal();
+  toast('Session reset');
+}
+
+// ── URL + QR CODE ─────────────────────────────────────────
+function generateAccessLinks(){
+  const adminUrl=window.location.href;
+  const participantUrl=adminUrl.replace('admin.html','index.html').split('?')[0];
+  const shortUrl=state.shortUrl||document.getElementById('short-url-input')?.value.trim()||participantUrl;
+
+  document.getElementById('short-url').textContent=shortUrl;
+  document.getElementById('full-url').textContent=participantUrl;
+  drawQR(shortUrl);
+}
+
+function drawQR(url){
+  const canvas=document.getElementById('qr-canvas');
+  if(!canvas)return;
+  const wrapper=canvas.parentNode;
+
+  // Remove old QR element if re-generating
+  const old=document.getElementById('qr-generated');
+  if(old)old.remove();
+
+  const div=document.createElement('div');
+  div.id='qr-generated';
+  div.style='display:flex;justify-content:center;margin-bottom:1rem';
+  wrapper.insertBefore(div,canvas);
+  canvas.style.display='none';
+
+  const script=document.createElement('script');
+  script.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  script.onload=()=>{
+    new QRCode(div,{
+      text:url,
+      width:200,
+      height:200,
+      colorDark:'#1A1814',
+      colorLight:'#FFFFFF',
+      correctLevel:QRCode.CorrectLevel.M
+    });
+  };
+  // Only add script if not already loaded
+  if(!window.QRCode){
+    document.head.appendChild(script);
+  } else {
+    new QRCode(div,{
+      text:url,width:200,height:200,
+      colorDark:'#1A1814',colorLight:'#FFFFFF',
+      correctLevel:QRCode.CorrectLevel.M
+    });
+  }
+}
+
+function copyURL(){
+  const url=document.getElementById('short-url').textContent;
+  navigator.clipboard?.writeText(url).catch(()=>{});
+  toast('URL copied!');
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function showIdeaStats(id){
+  const idea=state.ideas[id];
+  if(!idea)return;
+  const amounts=Object.values(idea.voteAmounts||{}).map(Number).filter(v=>v>0);
+  const n=amounts.length;
+  const total=idea.votes||0;
+
+  let body='';
+  if(!n){
+    body='<div class="empty">No individual votes recorded yet.</div>';
+  } else {
+    const avg=total/n;
+    const sorted=[...amounts].sort((a,b)=>a-b);
+    const median=n%2===0?(sorted[n/2-1]+sorted[n/2])/2:sorted[Math.floor(n/2)];
+    const min=sorted[0];
+    const max=sorted[n-1];
+
+    const stat=(label,val)=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--border)">
+        <span style="font-size:13px;color:var(--text2)">${label}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--text)">$${typeof val==='number'?Math.round(val*10)/10:val}</span>
+      </div>`;
+
+    body=`
+      ${stat('Voters who allocated',n)}
+      ${stat('Total allocated',''+total)}
+      ${stat('Average',avg)}
+      ${stat('Median',median)}
+      ${stat('Min',min)}
+      ${stat('Max',max)}`;
+  }
+
+  document.getElementById('stats-modal-title').textContent=idea.title;
+  document.getElementById('stats-modal-body').innerHTML=body;
+  document.getElementById('stats-modal').classList.add('open');
+}
+
+document.getElementById('stats-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('stats-modal'))
+    document.getElementById('stats-modal').classList.remove('open');
+});
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+document.getElementById('reset-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('reset-modal'))closeModal();
+});
+</script>
+</body>
+</html>

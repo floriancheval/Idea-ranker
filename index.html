@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feature Ranker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F7F5F0;--surface:#FFFFFF;--surface2:#F0EDE6;--border:#E2DDD6;
+    --text:#1A1814;--text2:#6B665E;--text3:#9E998F;
+    --accent:#2D5BE3;--accent-light:#EEF2FD;--accent-dark:#1A3A9E;
+    --success:#1A7A4A;--success-light:#E8F5EE;
+    --warn:#B85C00;--warn-light:#FEF3E8;
+    --danger:#C02020;--danger-light:#FDEDED;
+    --radius:12px;--radius-sm:8px;
+    --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+
+  /* NAV */
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.25rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+  .nav-brand{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;letter-spacing:-0.02em}
+  .nav-brand span{color:var(--accent)}
+  .nav-right{display:flex;align-items:center;gap:12px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background 0.3s;flex-shrink:0}
+  .status-dot.live{background:var(--success);box-shadow:0 0 0 3px var(--success-light)}
+  .nav-stats{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace}
+  .nav-stat{display:flex;align-items:center;gap:4px}
+  .nav-stat-val{font-weight:500;color:var(--text)}
+
+  .page{padding:1.25rem;max-width:680px;margin:0 auto}
+
+  /* SESSION CARD */
+  .session-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.875rem 1.25rem;margin-bottom:1rem;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center}
+  .session-label{font-size:11px;color:var(--text3);margin-bottom:1px;text-transform:uppercase;letter-spacing:.04em}
+  .session-name{font-size:15px;font-weight:600}
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .badge-blue{background:var(--accent-light);color:var(--accent)}
+  .badge-orange{background:var(--warn-light);color:var(--warn)}
+  .badge-green{background:var(--success-light);color:var(--success)}
+
+  /* RESULT BARS (participant) */
+  .p-result-item{margin-bottom:14px}
+  .p-result-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .p-result-text{font-size:14px;font-weight:500}
+  .p-result-text.winner::before{content:'🥇 '}
+  .p-result-score{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2)}
+  .p-result-track{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+  .p-result-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .6s cubic-bezier(.4,0,.2,1)}
+
+  /* ADD BUTTON */
+  .add-idea-btn{width:100%;padding:13px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:1rem;box-shadow:0 2px 8px rgba(45,91,227,.25);transition:all .15s}
+  .add-idea-btn:hover{background:var(--accent-dark);box-shadow:0 4px 16px rgba(45,91,227,.35)}
+  .add-idea-btn:active{transform:scale(.98)}
+
+  /* MASONRY */
+  .masonry{columns:3;column-gap:8px}
+  @media(max-width:500px){.masonry{columns:2}}
+
+  /* IDEA CARD */
+  .idea-card{break-inside:avoid;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-bottom:8px;box-shadow:var(--shadow);cursor:pointer;transition:border-color .15s,box-shadow .15s;animation:fadeIn .3s ease;position:relative}
+  .idea-card:hover{border-color:#b8c8f5;box-shadow:0 2px 12px rgba(45,91,227,.1)}
+  .idea-card.mine{border-left:3px solid var(--accent)}
+  .idea-title{font-size:13px;font-weight:600;line-height:1.35;color:var(--text)}
+  .idea-author{font-size:11px;color:var(--text3);margin-top:5px}
+  .idea-has-desc{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text3);margin-left:4px;vertical-align:middle;flex-shrink:0}
+  .idea-mine-actions{display:flex;gap:4px;margin-top:7px}
+  .icon-btn{padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);font-size:11px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .12s}
+  .icon-btn:hover{background:var(--border)}
+  .icon-btn.del:hover{background:var(--danger-light);color:var(--danger);border-color:#F5BEBE}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .empty{text-align:center;padding:2rem 1rem;color:var(--text3);font-size:14px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius)}
+
+  /* MODALS */
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:1rem}
+  .modal-backdrop.open{display:flex}
+  .modal{background:var(--surface);border-radius:var(--radius);padding:1.5rem;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2);animation:modalIn .2s ease}
+  @keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+  .modal-header h3{font-size:17px;font-weight:600}
+  .modal-close{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:16px;transition:all .15s;flex-shrink:0}
+  .modal-close:hover{background:var(--border)}
+  .field{margin-bottom:1rem}
+  .field label{display:block;font-size:13px;color:var(--text2);margin-bottom:6px;font-weight:500}
+  .field input,.field textarea{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+  .field input:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,91,227,.12);background:var(--surface)}
+  .field textarea{resize:vertical;min-height:65px;line-height:1.5}
+  .char-hint{font-size:11px;color:var(--text3);margin-top:4px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem}
+
+  /* Detail modal */
+  .detail-title{font-size:18px;font-weight:600;margin-bottom:4px;line-height:1.3}
+  .detail-author{font-size:13px;color:var(--text3);margin-bottom:1rem}
+  .detail-desc{font-size:14px;color:var(--text2);line-height:1.6;background:var(--bg);border-radius:var(--radius-sm);padding:.875rem 1rem}
+  .detail-nodesc{font-size:14px;color:var(--text3);font-style:italic}
+
+  /* BUTTONS */
+  .btn{padding:9px 18px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap}
+  .btn:hover{background:var(--surface2)}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--accent);color:white;border-color:var(--accent)}
+  .btn-primary:hover{background:var(--accent-dark)}
+  .btn-danger{background:var(--danger-light);color:var(--danger);border-color:#F5BEBE}
+  .btn-danger:hover{background:#FAD5D5}
+
+  /* VOTE */
+  .vote-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:10px;box-shadow:var(--shadow);transition:border-color .2s}
+  .vote-item.has-votes{border-color:var(--accent)}
+  .vote-item-title{font-size:14px;font-weight:600;margin-bottom:2px}
+  .vote-item-desc{font-size:12px;color:var(--text2);margin-bottom:2px;line-height:1.4}
+  .vote-item-author{font-size:11px;color:var(--text3);margin-bottom:10px}
+  .slider-row{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;height:4px;accent-color:var(--accent);cursor:pointer}
+  .slider-amount{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;min-width:44px;text-align:right;color:var(--accent)}
+
+  /* BUDGET */
+  .budget-widget{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
+  .budget-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .budget-label{font-size:13px;color:var(--text2)}
+  .budget-amount{font-family:'DM Mono',monospace;font-size:22px;font-weight:500}
+  .budget-amount.low{color:var(--danger)}
+  .budget-track{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+  .budget-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .3s,background .3s}
+  .budget-fill.low{background:var(--danger)}
+  .budget-hint{font-size:12px;color:var(--text3);margin-top:6px}
+
+  /* ALREADY VOTED */
+  .voted-banner{background:var(--success-light);border:1px solid #9FE1CB;border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--success)}
+
+  .phase-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+  .phase-bar h2{font-size:17px;font-weight:600}
+
+  .thanks{text-align:center;padding:3rem 1rem}
+  .thanks-icon{font-size:40px;margin-bottom:1rem}
+  .thanks h2{font-size:22px;font-weight:600;margin-bottom:8px}
+  .thanks p{font-size:15px;color:var(--text2)}
+
+  .connecting{display:flex;align-items:center;justify-content:center;min-height:60vh;flex-direction:column;gap:12px;color:var(--text3);font-size:14px}
+  .spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:white;padding:9px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">feature<span>.</span>ranker</div>
+  <div class="nav-right">
+    <div class="nav-stats">
+      <div class="nav-stat">
+        <div class="status-dot" id="status-dot"></div>
+        <span class="nav-stat-val" id="connected-count">—</span>
+        <span>online</span>
+      </div>
+      <span style="color:var(--border)">·</span>
+      <div class="nav-stat" id="voted-stat" style="display:none">
+        <span class="nav-stat-val" id="voted-count">0</span>
+        <span>voted</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <div id="p-connecting" class="connecting">
+    <div class="spinner"></div>
+    <span>Connecting to session…</span>
+  </div>
+
+  <div id="p-content" style="display:none">
+    <div class="session-card">
+      <div>
+        <div class="session-label">Session</div>
+        <div class="session-name" id="p-session-name">—</div>
+      </div>
+      <span class="badge badge-blue" id="p-phase-badge">Phase 1</span>
+    </div>
+
+    <!-- WAITING FOR SESSION TO OPEN -->
+    <div id="p-setup-wait" style="display:none" class="thanks">
+      <div class="thanks-icon">👋</div>
+      <h2>Welcome!</h2>
+      <p>The session hasn't started yet.<br>Please wait for the facilitator to open it.</p>
+    </div>
+
+    <!-- PHASE 1: IDEAS -->
+    <div id="p-ideas-phase">
+      <div class="phase-bar">
+        <h2>Ideas <span id="p-count" style="color:var(--text3);font-weight:400;font-size:15px">(0)</span></h2>
+      </div>
+      <button class="add-idea-btn" onclick="openSubmitModal()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" stroke="white" stroke-width="1.5"/><path d="M9 5.5v7M5.5 9h7" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Share your idea
+      </button>
+      <div class="masonry" id="p-ideas-grid">
+        <div class="empty" style="column-span:all">Ideas will appear here in real time.</div>
+      </div>
+    </div>
+
+    <!-- PHASE 2: VOTE -->
+    <div id="p-vote-phase" style="display:none">
+      <div class="phase-bar">
+        <h2>Allocate your budget</h2>
+        <span class="badge badge-orange">Phase 2</span>
+      </div>
+      <div id="already-voted-banner" class="voted-banner" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" stroke="#1A7A4A" stroke-width="1.5"/><path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#1A7A4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        You've already voted in this session. Thank you!
+      </div>
+      <div id="vote-form">
+        <div class="budget-widget">
+          <div class="budget-top">
+            <span class="budget-label">Remaining budget</span>
+            <span class="budget-amount" id="p-budget-left">$100</span>
+          </div>
+          <div class="budget-track"><div class="budget-fill" id="p-budget-bar" style="width:100%"></div></div>
+          <div class="budget-hint">Spread your $100 across the ideas you find most important.</div>
+        </div>
+        <div id="p-vote-list"></div>
+        <div style="text-align:right;margin-top:1rem">
+          <button class="btn btn-primary" onclick="submitVotes()">Confirm my votes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- THANK YOU -->
+    <div id="p-thanks" style="display:none" class="thanks">
+      <div class="thanks-icon">🙌</div>
+      <h2>Thank you!</h2>
+      <p>Your votes have been recorded.<br>Results will be displayed at the end of the session.</p>
+    </div>
+
+    <!-- CLOSED -->
+    <div id="p-waiting" style="display:none" class="thanks">
+      <div class="thanks-icon">⏳</div>
+      <h2>Session closed</h2>
+      <p>The session is over. Thank you for participating!</p>
+    </div>
+
+    <!-- RESULTS (phase=closed, visible to all) -->
+    <div id="p-results-phase" style="display:none">
+      <div class="phase-bar">
+        <h2>Results</h2>
+        <span class="badge badge-green">Final</span>
+      </div>
+      <div id="p-results-bars" style="margin-top:.5rem"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SUBMIT / EDIT MODAL -->
+<div class="modal-backdrop" id="idea-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Share your idea</h3>
+      <button class="modal-close" onclick="closeSubmitModal()">✕</button>
+    </div>
+    <div class="field" id="name-field">
+      <label>Your first name</label>
+      <input type="text" id="p-name" placeholder="E.g. Sarah">
+    </div>
+    <div class="field">
+      <label>Title <span style="color:var(--text3);font-weight:400">(max 40 characters)</span></label>
+      <input type="text" id="p-idea-title" placeholder="E.g. Faster onboarding" maxlength="40" oninput="updateCharCount()">
+      <div class="char-hint"><span id="char-count">0</span>/40</div>
+    </div>
+    <div class="field">
+      <label>Details <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+      <textarea id="p-idea-desc" placeholder="Add context if needed…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeSubmitModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-submit-btn" onclick="submitIdea()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-backdrop" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 style="font-size:13px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Idea</h3>
+      <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div class="detail-title" id="detail-title"></div>
+    <div class="detail-author" id="detail-author"></div>
+    <div id="detail-desc-wrap"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyBrvrdhIBm0Q9PmPar5BaVpvaCUV9cgH6c",
+  authDomain:"feature-ranker.firebaseapp.com",
+  databaseURL:"https://feature-ranker-default-rtdb.firebaseio.com",
+  projectId:"feature-ranker",
+  storageBucket:"feature-ranker.firebasestorage.app",
+  messagingSenderId:"950376083431",
+  appId:"1:950376083431:web:7af89a968d2d5b0fc81742"
+});
+const db=firebase.database();
+const sessionRef=db.ref('session');
+const presenceRef=db.ref('presence');
+
+// ── IDENTITY (cookie-based) ──────────────────────────────
+function getCookie(n){const m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null}
+function setCookie(n,v,days){const d=new Date;d.setTime(d.getTime()+days*864e5);document.cookie=`${n}=${encodeURIComponent(v)};expires=${d.toUTCString()};path=/;SameSite=Lax`}
+let myId=getCookie('fr_uid');
+if(!myId){myId='u_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);setCookie('fr_uid',myId,1);}
+let myIdeasIds=JSON.parse(getCookie('fr_ideas')||'[]');
+function saveMyIdeas(){setCookie('fr_ideas',JSON.stringify(myIdeasIds),1);}
+let hasVoted=false; // will be checked against sessionId once Firebase loads
+
+// ── STATE ────────────────────────────────────────────────
+let state={name:'',phase:'ideas',ideas:{},participants:0,votedCount:0};
+let localAllocations={};
+let editingId=null;
+
+// ── PRESENCE ─────────────────────────────────────────────
+const myPresence=presenceRef.child(myId);
+myPresence.set({online:true,ts:Date.now()});
+myPresence.onDisconnect().remove();
+presenceRef.on('value',snap=>{
+  const count=snap.numChildren()||0;
+  document.getElementById('connected-count').textContent=count;
+});
+
+// ── FIREBASE SYNC ────────────────────────────────────────
+sessionRef.on('value',snap=>{
+  const d=snap.val()||{};
+  const newSessionId=d.sessionId||'';
+  // Reset allocations if this is a new session
+  if(newSessionId && newSessionId!==state.sessionId){
+    localAllocations={};
+  }
+  state={name:d.name||'Feature Ranker',phase:d.phase||'ideas',ideas:d.ideas||{},participants:d.participants||0,votedCount:d.votedCount||0,sessionId:newSessionId};
+  hasVoted=state.sessionId?getCookie('fr_voted_'+state.sessionId)==='1':false;
+  document.getElementById('status-dot').className='status-dot live';
+  document.getElementById('p-connecting').style.display='none';
+  document.getElementById('p-content').style.display='block';
+  document.getElementById('p-session-name').textContent=state.name;
+  renderPhase();
+},()=>{document.getElementById('status-dot').className='status-dot';});
+
+function renderPhase(){
+  const ph=state.phase;
+  document.getElementById('p-setup-wait').style.display=ph==='setup'?'block':'none';
+  document.getElementById('p-ideas-phase').style.display=ph==='ideas'?'block':'none';
+  document.getElementById('p-vote-phase').style.display=(ph==='vote')?'block':'none';
+  document.getElementById('p-thanks').style.display='none';
+  document.getElementById('p-waiting').style.display='none';
+  document.getElementById('p-results-phase').style.display=ph==='closed'?'block':'none';
+
+  // nav badge
+  const phaseBadge=document.getElementById('p-phase-badge');
+  if(ph==='setup'){phaseBadge.textContent='Waiting';phaseBadge.className='badge badge-blue';}
+  else if(ph==='ideas'){phaseBadge.textContent='Phase 1';phaseBadge.className='badge badge-blue';}
+  else if(ph==='vote'){phaseBadge.textContent='Phase 2';phaseBadge.className='badge badge-orange';}
+  else if(ph==='closed'){phaseBadge.textContent='Results';phaseBadge.className='badge badge-green';}
+
+  // voted stat
+  const votedStat=document.getElementById('voted-stat');
+  if(ph==='vote'){votedStat.style.display='flex';document.getElementById('voted-count').textContent=state.votedCount||0;}
+  else votedStat.style.display='none';
+
+  if(ph==='ideas') renderCards();
+  if(ph==='vote') renderVotePhase();
+  if(ph==='closed') renderParticipantResults();
+}
+
+// ── CARDS ────────────────────────────────────────────────
+function renderCards(){
+  const ideas=Object.values(state.ideas);
+  document.getElementById('p-count').textContent=`(${ideas.length})`;
+  const grid=document.getElementById('p-ideas-grid');
+  if(!ideas.length){grid.innerHTML='<div class="empty" style="column-span:all">Ideas will appear here in real time.</div>';return;}
+  grid.innerHTML=ideas.map(i=>{
+    const mine=myIdeasIds.includes(i.id);
+    return `<div class="idea-card${mine?' mine':''}" onclick="openDetailModal('${i.id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px">
+        <div class="idea-title">${escHtml(i.title)}${i.desc?'<span class="idea-has-desc" title="Has details"></span>':''}</div>
+      </div>
+      <div class="idea-author">${escHtml(i.author)}</div>
+      ${mine?`<div class="idea-mine-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="openEditModal('${i.id}')">Edit</button>
+        <button class="icon-btn del" onclick="deleteIdea('${i.id}')">Delete</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL MODAL ─────────────────────────────────────────
+function openDetailModal(id){
+  const i=state.ideas[id];
+  if(!i)return;
+  document.getElementById('detail-title').textContent=i.title;
+  document.getElementById('detail-author').textContent='by '+i.author;
+  document.getElementById('detail-desc-wrap').innerHTML=i.desc
+    ?`<div class="detail-desc">${escHtml(i.desc)}</div>`
+    :'<div class="detail-nodesc">No additional details.</div>';
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDetailModal(){document.getElementById('detail-modal').classList.remove('open');}
+
+// ── SUBMIT / EDIT MODAL ───────────────────────────────────
+function openSubmitModal(){
+  editingId=null;
+  document.getElementById('modal-title').textContent='Share your idea';
+  document.getElementById('modal-submit-btn').textContent='Submit';
+  document.getElementById('name-field').style.display='block';
+  document.getElementById('p-idea-title').value='';
+  document.getElementById('p-idea-desc').value='';
+  document.getElementById('char-count').textContent='0';
+  document.getElementById('idea-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('p-name').focus(),100);
+}
+function openEditModal(id){
+  const i=state.ideas[id];
+  if(!i)return;
+  editingId=id;
+  document.getElementById('modal-title').textContent='Edit your idea';
+  document.getElementById('modal-submit-btn').textContent='Save';
+  document.getElementById('name-field').style.display='none';
+  document.getElementById('p-idea-title').value=i.title;
+  document.getElementById('p-idea-desc').value=i.desc||'';
+  document.getElementById('char-count').textContent=i.title.length;
+  document.getElementById('idea-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('p-idea-title').focus(),100);
+}
+function closeSubmitModal(){document.getElementById('idea-modal').classList.remove('open');editingId=null;}
+function updateCharCount(){document.getElementById('char-count').textContent=document.getElementById('p-idea-title').value.length;}
+
+function submitIdea(){
+  const title=document.getElementById('p-idea-title').value.trim();
+  const desc=document.getElementById('p-idea-desc').value.trim();
+  if(!title)return;
+
+  if(editingId){
+    sessionRef.child('ideas').child(editingId).update({title,desc});
+    closeSubmitModal();
+    toast('Idea updated!');
+    return;
+  }
+
+  const name=document.getElementById('p-name').value.trim()||'Anonymous';
+  const id=Date.now().toString();
+  sessionRef.child('ideas').child(id).set({id,title,desc,author:name,votes:0});
+  sessionRef.transaction(d=>{if(d)d.participants=(d.participants||0)+1;return d;});
+  myIdeasIds.push(id);
+  saveMyIdeas();
+  document.getElementById('p-idea-title').value='';
+  document.getElementById('p-idea-desc').value='';
+  document.getElementById('char-count').textContent='0';
+  closeSubmitModal();
+  toast('Idea submitted!');
+}
+
+function deleteIdea(id){
+  if(!myIdeasIds.includes(id))return;
+  sessionRef.child('ideas').child(id).remove();
+  myIdeasIds=myIdeasIds.filter(x=>x!==id);
+  saveMyIdeas();
+  toast('Idea removed.');
+}
+
+// ── PARTICIPANT RESULTS ──────────────────────────────────
+function renderParticipantResults(){
+  const ideas=Object.values(state.ideas).sort((a,b)=>(b.votes||0)-(a.votes||0));
+  const total=ideas.reduce((s,i)=>s+(i.votes||0),0);
+  const el=document.getElementById('p-results-bars');
+  if(!ideas.length||total===0){el.innerHTML='<div class="empty">No votes recorded.</div>';return;}
+  const max=ideas[0].votes||1;
+  el.innerHTML=ideas.map((i,idx)=>`
+    <div class="p-result-item">
+      <div class="p-result-header">
+        <span class="p-result-text ${idx===0?'winner':''}">${escHtml(i.title)}</span>
+        <span class="p-result-score">$${i.votes||0} · ${Math.round((i.votes||0)/total*100)}%</span>
+      </div>
+      <div class="p-result-track"><div class="p-result-fill" style="width:${Math.round((i.votes||0)/max*100)}%"></div></div>
+    </div>`).join('');
+}
+
+// ── VOTE PHASE ───────────────────────────────────────────
+function renderVotePhase(){
+  const banner=document.getElementById('already-voted-banner');
+  const form=document.getElementById('vote-form');
+  if(hasVoted){
+    banner.style.display='flex';
+    form.style.display='none';
+    document.getElementById('voted-stat').style.display='flex';
+    document.getElementById('voted-count').textContent=state.votedCount||0;
+    return;
+  }
+  banner.style.display='none';
+  form.style.display='block';
+  Object.values(state.ideas).forEach(i=>{if(!localAllocations[i.id])localAllocations[i.id]=0;});
+  document.getElementById('p-vote-list').innerHTML=Object.values(state.ideas).map(i=>`
+    <div class="vote-item ${(localAllocations[i.id]||0)>0?'has-votes':''}" id="vi-${i.id}">
+      <div class="vote-item-title">${escHtml(i.title)}</div>
+      ${i.desc?`<div class="vote-item-desc">${escHtml(i.desc)}</div>`:''}
+      <div class="vote-item-author">by ${escHtml(i.author)}</div>
+      <div class="slider-row">
+        <input type="range" min="0" max="100" step="5" value="${localAllocations[i.id]||0}" id="sl-${i.id}" oninput="updateSlider('${i.id}',this.value)">
+        <span class="slider-amount" id="al-${i.id}">$${localAllocations[i.id]||0}</span>
+      </div>
+    </div>`).join('');
+  updateBudget();
+}
+
+function updateSlider(id,val){
+  const nv=parseInt(val),old=localAllocations[id]||0;
+  const used=Object.values(localAllocations).reduce((s,v)=>s+v,0);
+  const tent=used-old+nv;
+  localAllocations[id]=tent>100?Math.max(0,100-(used-old)):nv;
+  document.getElementById('sl-'+id).value=localAllocations[id];
+  document.getElementById('al-'+id).textContent='$'+localAllocations[id];
+  document.getElementById('vi-'+id)?.classList.toggle('has-votes',localAllocations[id]>0);
+  updateBudget();
+}
+
+function updateBudget(){
+  const used=Object.values(localAllocations).reduce((s,v)=>s+v,0),left=100-used;
+  const el=document.getElementById('p-budget-left'),bar=document.getElementById('p-budget-bar');
+  if(el){el.textContent='$'+left;el.className='budget-amount'+(left<20?' low':'');}
+  if(bar){bar.style.width=left+'%';bar.className='budget-fill'+(left<20?' low':'');}
+}
+
+function submitVotes(){
+  if(hasVoted)return;
+  Object.entries(localAllocations).forEach(([id,amt])=>{
+    if(amt>0)sessionRef.child('ideas').child(id).transaction(i=>{
+      if(i){
+        i.votes=(i.votes||0)+amt;
+        // Store individual amounts for stats (as object keyed by myId)
+        if(!i.voteAmounts)i.voteAmounts={};
+        i.voteAmounts[myId]=amt;
+      }
+      return i;
+    });
+  });
+  sessionRef.transaction(d=>{if(d)d.votedCount=(d.votedCount||0)+1;return d;});
+  hasVoted=true;
+  setCookie('fr_voted_'+state.sessionId,'1',1);
+  renderVotePhase();
+  toast('Votes confirmed!');
+}
+
+// ── UTILS ────────────────────────────────────────────────
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// Close modals on backdrop click
+['idea-modal','detail-modal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{
+    if(e.target===document.getElementById(id)){
+      if(id==='idea-modal')closeSubmitModal();
+      else closeDetailModal();
+    }
+  });
+});
+</script>
+</body>
+</html>
