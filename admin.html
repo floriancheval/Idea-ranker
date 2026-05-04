@@ -510,6 +510,24 @@ function renderAdminIdeas(){
     </div>`).join('');
 }
 
+async function startSession(){
+  const name=document.getElementById('session-name').value.trim()||'Feature Ranker';
+  const shortUrl=document.getElementById('short-url-input').value.trim();
+  const sessionId='s_'+Date.now().toString(36);
+  await sessionRef.update({name,phase:'ideas',shortUrl,sessionId});
+  generateAccessLinks();
+  toast('Session started!');
+}
+
+async function startSession(){
+  const name=document.getElementById('session-name').value.trim()||'Feature Ranker';
+  const shortUrl=document.getElementById('short-url-input').value.trim();
+  const sessionId='s_'+Date.now().toString(36);
+  await sessionRef.update({name,phase:'ideas',shortUrl,sessionId});
+  generateAccessLinks();
+  toast('Session started!');
+}
+
 // ── PANE 1: IDEATION ─────────────────────────────────────
 function renderIdeation(){
   const ideas=Object.values(state.ideas);
