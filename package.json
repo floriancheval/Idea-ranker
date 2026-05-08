@@ -1,0 +1,19 @@
+{
+  "name": "idea-ranker",
+  "version": "1.0.0",
+  "description": "Votrix — collaborative idea voting tool",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/floriancheval/Idea-ranker.git"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "dotenv": "^17.4.2"
+  }
+}

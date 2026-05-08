@@ -1,0 +1,6 @@
+node_modules/
+.env.test
+playwright-report/
+test-results/
+screenshot.png
+PRD.md
