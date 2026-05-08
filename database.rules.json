@@ -1,0 +1,53 @@
+{
+  "rules": {
+    "session": {
+      ".read": "auth != null",
+
+      "name":      { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
+      "phase":     { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
+      "shortUrl":  { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
+      "sessionId": { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
+
+      "participants": {
+        ".write": "auth != null",
+        ".validate": "newData.isNumber() && newData.val() >= 0"
+      },
+      "votedCount": {
+        ".write": "auth != null",
+        ".validate": "newData.isNumber() && newData.val() >= 0"
+      },
+
+      "ideas": {
+        ".write": "auth.token.email === 'florian.cheval@gmail.com'",
+        "$ideaId": {
+          ".write": "auth != null && (!data.exists() || data.child('authorUid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['id','title','author','authorUid']) && newData.child('title').isString() && newData.child('title').val().length <= 40 && newData.child('author').isString()",
+          "votes": {
+            ".write": "auth != null",
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          }
+        }
+      },
+
+      "ballots": {
+        ".read": "auth.token.email === 'florian.cheval@gmail.com'",
+        ".write": "auth.token.email === 'florian.cheval@gmail.com'",
+        "$uid": {
+          ".read": "auth.uid === $uid",
+          ".write": "auth.uid === $uid && !data.exists()",
+          "$ideaId": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          }
+        }
+      }
+    },
+
+    "presence": {
+      ".read": "auth != null",
+      ".write": "auth.token.email === 'florian.cheval@gmail.com'",
+      "$uid": {
+        ".write": "auth.uid === $uid"
+      }
+    }
+  }
+}

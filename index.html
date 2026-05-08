@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Feature Ranker</title>
+<title>Votrix</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -21,8 +21,7 @@
 
   /* NAV */
   .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.25rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
-  .nav-brand{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;letter-spacing:-0.02em}
-  .nav-brand span{color:var(--accent)}
+  .nav-brand{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;letter-spacing:-0.02em;display:flex;align-items:center;gap:9px}
   .nav-right{display:flex;align-items:center;gap:12px}
   .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background 0.3s;flex-shrink:0}
   .status-dot.live{background:var(--success);box-shadow:0 0 0 3px var(--success-light)}
@@ -148,7 +147,7 @@
 <body>
 
 <nav class="nav">
-  <div class="nav-brand">feature<span>.</span>ranker</div>
+  <div class="nav-brand"><svg width="18" height="13" viewBox="0 0 18 13" fill="none"><path d="M0 1.5h18" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M0 6.5h11" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M0 11.5h6" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>votrix</div>
   <div class="nav-right">
     <div class="nav-stats">
       <div class="nav-stat">
@@ -297,6 +296,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 firebase.initializeApp({
   apiKey:"AIzaSyBrvrdhIBm0Q9PmPar5BaVpvaCUV9cgH6c",
@@ -311,45 +311,58 @@ const db=firebase.database();
 const sessionRef=db.ref('session');
 const presenceRef=db.ref('presence');
 
-// ── IDENTITY (cookie-based) ──────────────────────────────
-function getCookie(n){const m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null}
-function setCookie(n,v,days){const d=new Date;d.setTime(d.getTime()+days*864e5);document.cookie=`${n}=${encodeURIComponent(v)};expires=${d.toUTCString()};path=/;SameSite=Lax`}
-let myId=getCookie('fr_uid');
-if(!myId){myId='u_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);setCookie('fr_uid',myId,1);}
-let myIdeasIds=JSON.parse(getCookie('fr_ideas')||'[]');
-function saveMyIdeas(){setCookie('fr_ideas',JSON.stringify(myIdeasIds),1);}
-let hasVoted=false; // will be checked against sessionId once Firebase loads
+// ── IDENTITY (Firebase Anonymous Auth) ───────────────────
+let myId=null;
+firebase.auth().signInAnonymously().catch(()=>{});
+firebase.auth().onAuthStateChanged(user=>{
+  if(!user)return;
+  myId=user.uid;
+  initPresence();
+  initSession();
+});
 
 // ── STATE ────────────────────────────────────────────────
 let state={name:'',phase:'ideas',ideas:{},participants:0,votedCount:0};
 let localAllocations={};
 let editingId=null;
+let hasVoted=false;
 
 // ── PRESENCE ─────────────────────────────────────────────
-const myPresence=presenceRef.child(myId);
-myPresence.set({online:true,ts:Date.now()});
-myPresence.onDisconnect().remove();
-presenceRef.on('value',snap=>{
-  const count=snap.numChildren()||0;
-  document.getElementById('connected-count').textContent=count;
-});
+function initPresence(){
+  const myPresence=presenceRef.child(myId);
+  // Re-register on every (re)connect so presence survives network drops and admin resets
+  db.ref('.info/connected').on('value',snap=>{
+    if(!snap.val())return;
+    myPresence.onDisconnect().remove();
+    myPresence.set({online:true,ts:Date.now()});
+  });
+  presenceRef.on('value',snap=>{
+    document.getElementById('connected-count').textContent=snap.numChildren()||0;
+  });
+}
 
-// ── FIREBASE SYNC ────────────────────────────────────────
-sessionRef.on('value',snap=>{
-  const d=snap.val()||{};
-  const newSessionId=d.sessionId||'';
-  // Reset allocations if this is a new session
-  if(newSessionId && newSessionId!==state.sessionId){
-    localAllocations={};
-  }
-  state={name:d.name||'Feature Ranker',phase:d.phase||'ideas',ideas:d.ideas||{},participants:d.participants||0,votedCount:d.votedCount||0,sessionId:newSessionId};
-  hasVoted=state.sessionId?getCookie('fr_voted_'+state.sessionId)==='1':false;
-  document.getElementById('status-dot').className='status-dot live';
-  document.getElementById('p-connecting').style.display='none';
-  document.getElementById('p-content').style.display='block';
-  document.getElementById('p-session-name').textContent=state.name;
-  renderPhase();
-},()=>{document.getElementById('status-dot').className='status-dot';});
+// ── SESSION ───────────────────────────────────────────────
+function initSession(){
+  // Authoritative voted check — ballot exists in DB means user has voted
+  sessionRef.child('ballots').child(myId).on('value',snap=>{
+    hasVoted=snap.exists();
+    if(state.phase==='vote')renderVotePhase();
+  });
+
+  sessionRef.on('value',snap=>{
+    const d=snap.val()||{};
+    const newSessionId=d.sessionId||'';
+    if(newSessionId&&newSessionId!==state.sessionId){
+      localAllocations={};
+    }
+    state={name:d.name||'Votrix',phase:d.phase||'ideas',ideas:d.ideas||{},participants:d.participants||0,votedCount:d.votedCount||0,sessionId:newSessionId};
+    document.getElementById('status-dot').className='status-dot live';
+    document.getElementById('p-connecting').style.display='none';
+    document.getElementById('p-content').style.display='block';
+    document.getElementById('p-session-name').textContent=state.name;
+    renderPhase();
+  },()=>{document.getElementById('status-dot').className='status-dot';});
+}
 
 function renderPhase(){
   const ph=state.phase;
@@ -360,21 +373,19 @@ function renderPhase(){
   document.getElementById('p-waiting').style.display='none';
   document.getElementById('p-results-phase').style.display=ph==='closed'?'block':'none';
 
-  // nav badge
   const phaseBadge=document.getElementById('p-phase-badge');
   if(ph==='setup'){phaseBadge.textContent='Waiting';phaseBadge.className='badge badge-blue';}
   else if(ph==='ideas'){phaseBadge.textContent='Phase 1';phaseBadge.className='badge badge-blue';}
   else if(ph==='vote'){phaseBadge.textContent='Phase 2';phaseBadge.className='badge badge-orange';}
   else if(ph==='closed'){phaseBadge.textContent='Results';phaseBadge.className='badge badge-green';}
 
-  // voted stat
   const votedStat=document.getElementById('voted-stat');
   if(ph==='vote'){votedStat.style.display='flex';document.getElementById('voted-count').textContent=state.votedCount||0;}
   else votedStat.style.display='none';
 
-  if(ph==='ideas') renderCards();
-  if(ph==='vote') renderVotePhase();
-  if(ph==='closed') renderParticipantResults();
+  if(ph==='ideas')renderCards();
+  if(ph==='vote')renderVotePhase();
+  if(ph==='closed')renderParticipantResults();
 }
 
 // ── CARDS ────────────────────────────────────────────────
@@ -384,7 +395,7 @@ function renderCards(){
   const grid=document.getElementById('p-ideas-grid');
   if(!ideas.length){grid.innerHTML='<div class="empty" style="column-span:all">Ideas will appear here in real time.</div>';return;}
   grid.innerHTML=ideas.map(i=>{
-    const mine=myIdeasIds.includes(i.id);
+    const mine=i.authorUid===myId;
     return `<div class="idea-card${mine?' mine':''}" onclick="openDetailModal('${i.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px">
         <div class="idea-title">${escHtml(i.title)}${i.desc?'<span class="idea-has-desc" title="Has details"></span>':''}</div>
@@ -453,10 +464,8 @@ function submitIdea(){
 
   const name=document.getElementById('p-name').value.trim()||'Anonymous';
   const id=Date.now().toString();
-  sessionRef.child('ideas').child(id).set({id,title,desc,author:name,votes:0});
-  sessionRef.transaction(d=>{if(d)d.participants=(d.participants||0)+1;return d;});
-  myIdeasIds.push(id);
-  saveMyIdeas();
+  sessionRef.child('ideas').child(id).set({id,title,desc,author:name,authorUid:myId,votes:0});
+  sessionRef.child('participants').transaction(v=>(v||0)+1);
   document.getElementById('p-idea-title').value='';
   document.getElementById('p-idea-desc').value='';
   document.getElementById('char-count').textContent='0';
@@ -465,10 +474,9 @@ function submitIdea(){
 }
 
 function deleteIdea(id){
-  if(!myIdeasIds.includes(id))return;
+  const idea=state.ideas[id];
+  if(!idea||idea.authorUid!==myId)return;
   sessionRef.child('ideas').child(id).remove();
-  myIdeasIds=myIdeasIds.filter(x=>x!==id);
-  saveMyIdeas();
   toast('Idea removed.');
 }
 
@@ -534,24 +542,26 @@ function updateBudget(){
   if(bar){bar.style.width=left+'%';bar.className='budget-fill'+(left<20?' low':'');}
 }
 
-function submitVotes(){
+async function submitVotes(){
   if(hasVoted)return;
-  Object.entries(localAllocations).forEach(([id,amt])=>{
-    if(amt>0)sessionRef.child('ideas').child(id).transaction(i=>{
-      if(i){
-        i.votes=(i.votes||0)+amt;
-        // Store individual amounts for stats (as object keyed by myId)
-        if(!i.voteAmounts)i.voteAmounts={};
-        i.voteAmounts[myId]=amt;
-      }
-      return i;
-    });
-  });
-  sessionRef.transaction(d=>{if(d)d.votedCount=(d.votedCount||0)+1;return d;});
-  hasVoted=true;
-  setCookie('fr_voted_'+state.sessionId,'1',1);
-  renderVotePhase();
-  toast('Votes confirmed!');
+  const ballot={};
+  Object.entries(localAllocations).forEach(([id,amt])=>{if(amt>0)ballot[id]=amt;});
+  if(!Object.keys(ballot).length){toast('Allocate some budget first.');return;}
+  try{
+    // Write ballot atomically — Firebase rules enforce one write per uid
+    await sessionRef.child('ballots').child(myId).set(ballot);
+    // Update votes field-by-field so Firebase rules allow non-authors to write
+    await Promise.all(
+      Object.entries(ballot).map(([id,amt])=>
+        sessionRef.child('ideas').child(id).child('votes').transaction(v=>(v||0)+amt)
+      )
+    );
+    await sessionRef.child('votedCount').transaction(v=>(v||0)+1);
+    renderVotePhase();
+    toast('Votes confirmed!');
+  }catch(e){
+    toast('Could not submit votes. Please try again.');
+  }
 }
 
 // ── UTILS ────────────────────────────────────────────────
@@ -563,7 +573,6 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// Close modals on backdrop click
 ['idea-modal','detail-modal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',e=>{
     if(e.target===document.getElementById(id)){

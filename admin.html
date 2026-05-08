@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Feature Ranker — Facilitator</title>
+<title>Votrix — Facilitator</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -21,8 +21,7 @@
 
   /* NAV */
   .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
-  .nav-brand{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;letter-spacing:-.02em}
-  .nav-brand span{color:var(--accent)}
+  .nav-brand{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
   .nav-right{display:flex;align-items:center;gap:10px}
   .admin-badge{background:var(--warn-light);color:var(--warn);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;letter-spacing:.04em;text-transform:uppercase}
   .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background .3s}
@@ -133,11 +132,24 @@
   .modal h3{font-size:16px;font-weight:600;margin-bottom:8px}
   .modal p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:1.25rem}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+  .modal-close{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:16px;transition:all .15s}
+  .modal-close:hover{background:var(--border)}
 
   .empty{text-align:center;padding:1.5rem;color:var(--text3);font-size:14px}
   .divider{border:none;border-top:1px solid var(--border);margin:1.25rem 0}
   .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:white;padding:9px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* AUTH OVERLAY */
+  .auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+  .auth-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem 2.5rem;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.1);max-width:340px;width:100%}
+  .auth-brand{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;margin-bottom:1.5rem;color:var(--text);display:flex;align-items:center;justify-content:center;gap:10px}
+  .auth-title{font-size:17px;font-weight:600;margin-bottom:6px}
+  .auth-sub{font-size:13px;color:var(--text2);margin-bottom:1.5rem}
+  .google-btn{width:100%;padding:10px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;color:var(--text)}
+  .google-btn:hover{background:var(--surface2);border-color:#c0bbb5}
+  .auth-error{font-size:13px;color:var(--danger);margin-top:12px;display:none}
 
   @media(max-width:540px){
     .page{padding:1.25rem 1rem}
@@ -150,11 +162,35 @@
 </head>
 <body>
 
+<!-- AUTH OVERLAY — shown until Google sign-in is confirmed -->
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-brand"><svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M0 1.5h20" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M0 7h13" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M0 12.5h7" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>votrix</div>
+    <div class="auth-title">Facilitator access</div>
+    <div class="auth-sub">Sign in with your Google account to continue.</div>
+    <button class="google-btn" onclick="signIn()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+        <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
 <nav class="nav">
-  <div class="nav-brand">feature<span>.</span>ranker</div>
+  <div class="nav-brand"><svg width="18" height="13" viewBox="0 0 18 13" fill="none"><path d="M0 1.5h18" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M0 6.5h11" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/><path d="M0 11.5h6" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>votrix</div>
   <div class="nav-right">
     <span class="admin-badge">Facilitator</span>
-    <div class="status-dot" id="status-dot"></div>
+    <div style="display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">
+      <div class="status-dot live"></div>
+      <span id="nav-online-count">0</span>
+      <span>online</span>
+    </div>
+    <button class="btn btn-sm" onclick="firebase.auth().signOut()" style="font-size:12px;color:var(--text2)">Sign out</button>
   </div>
 </nav>
 
@@ -377,6 +413,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 firebase.initializeApp({
   apiKey:"AIzaSyBrvrdhIBm0Q9PmPar5BaVpvaCUV9cgH6c",
@@ -388,41 +425,83 @@ firebase.initializeApp({
   appId:"1:950376083431:web:7af89a968d2d5b0fc81742"
 });
 
+const ADMIN_EMAIL='florian.cheval@gmail.com';
+
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 const db=firebase.database();
 const sessionRef=db.ref('session');
 
 let state={name:'',phase:'setup',ideas:{},participants:0,votedCount:0};
+let ballots={};
 let currentStep=0;
 
-// ── PRESENCE ─────────────────────────────────────────────
-db.ref('presence').on('value',snap=>{
-  const n=snap.numChildren()||0;
-  document.getElementById('i-connected').textContent=n;
-  document.getElementById('v-connected').textContent=n;
+// ── AUTH ──────────────────────────────────────────────────
+function signIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({login_hint:ADMIN_EMAIL});
+  firebase.auth().signInWithPopup(provider).catch(err=>{
+    showAuthError(err.code+': '+err.message);
+  });
+}
+
+function showAuthError(msg){
+  const el=document.getElementById('auth-error');
+  el.textContent=msg;
+  el.style.display='block';
+}
+
+firebase.auth().onAuthStateChanged(user=>{
+  if(!user){
+    document.getElementById('auth-overlay').style.display='flex';
+    return;
+  }
+  if(user.email!==ADMIN_EMAIL){
+    firebase.auth().signOut();
+    showAuthError('Access denied. Sign in as '+ADMIN_EMAIL+'.');
+    document.getElementById('auth-overlay').style.display='flex';
+    return;
+  }
+  document.getElementById('auth-overlay').style.display='none';
+  initApp();
 });
 
-// ── FIREBASE SYNC ────────────────────────────────────────
-sessionRef.on('value',snap=>{
-  const d=snap.val()||{};
-  state={
-    name:d.name||'Feature Ranker',
-    phase:d.phase||'setup',
-    ideas:d.ideas||{},
-    participants:d.participants||0,
-    votedCount:d.votedCount||0,
-    shortUrl:d.shortUrl||''
-  };
-  document.getElementById('status-dot').className='status-dot live';
-  syncStepFromPhase();
-  renderCurrentPane();
-},()=>{document.getElementById('status-dot').className='status-dot';});
+// ── APP INIT (runs after auth) ────────────────────────────
+function initApp(){
+  const adminPresence=db.ref('presence').child(firebase.auth().currentUser.uid);
+  db.ref('.info/connected').on('value',snap=>{
+    if(!snap.val())return;
+    adminPresence.onDisconnect().remove();
+    adminPresence.set({online:true,ts:Date.now()});
+  });
+  db.ref('presence').on('value',snap=>{
+    const n=snap.numChildren()||0;
+    document.getElementById('nav-online-count').textContent=n;
+    document.getElementById('i-connected').textContent=n;
+    document.getElementById('v-connected').textContent=n;
+  });
+
+  sessionRef.child('ballots').on('value',snap=>{ ballots=snap.val()||{}; });
+
+  sessionRef.on('value',snap=>{
+    const d=snap.val()||{};
+    state={
+      name:d.name||'Votrix',
+      phase:d.phase||'setup',
+      ideas:d.ideas||{},
+      participants:d.participants||0,
+      votedCount:d.votedCount||0,
+      shortUrl:d.shortUrl||''
+    };
+    syncStepFromPhase();
+    renderCurrentPane();
+  },()=>{});
+}
 
 function syncStepFromPhase(){
   const map={setup:0,ideas:1,vote:2,closed:3,done:4};
   const s=map[state.phase]??0;
-  if(s!==currentStep) goToStep(s,true);
+  if(s!==currentStep)goToStep(s,true);
 }
 
 // ── STEP NAVIGATION ───────────────────────────────────────
@@ -431,24 +510,24 @@ function goToStep(n,silent){
   document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('active',i===n));
   document.querySelectorAll('.step').forEach((s,i)=>{
     s.classList.remove('active','done');
-    if(i===n) s.classList.add('active');
-    else if(i<n) s.classList.add('done');
+    if(i===n)s.classList.add('active');
+    else if(i<n)s.classList.add('done');
   });
-  if(!silent) renderCurrentPane();
+  if(!silent)renderCurrentPane();
 }
 
 function renderCurrentPane(){
-  if(currentStep===0) renderSetup();
-  if(currentStep===1) renderIdeation();
-  if(currentStep===2) renderVotePane();
-  if(currentStep===3) renderResults();
-  if(currentStep===4) renderResetPane();
+  if(currentStep===0)renderSetup();
+  if(currentStep===1)renderIdeation();
+  if(currentStep===2)renderVotePane();
+  if(currentStep===3)renderResults();
+  if(currentStep===4)renderResetPane();
 }
 
 // ── PANE 0: SETUP ────────────────────────────────────────
 function renderSetup(){
   document.getElementById('session-name').value=state.name;
-  if(state.shortUrl) document.getElementById('short-url-input').value=state.shortUrl;
+  if(state.shortUrl)document.getElementById('short-url-input').value=state.shortUrl;
   renderAdminIdeas();
 }
 
@@ -464,7 +543,7 @@ function addIdea(){
   const desc=document.getElementById('admin-idea-desc').value.trim();
   if(!title)return;
   const id=Date.now().toString();
-  sessionRef.child('ideas').child(id).set({id,title,desc,author:'Facilitator',votes:0});
+  sessionRef.child('ideas').child(id).set({id,title,desc,author:'Facilitator',authorUid:'admin',votes:0});
   document.getElementById('admin-idea-title').value='';
   document.getElementById('admin-idea-desc').value='';
 }
@@ -511,16 +590,7 @@ function renderAdminIdeas(){
 }
 
 async function startSession(){
-  const name=document.getElementById('session-name').value.trim()||'Feature Ranker';
-  const shortUrl=document.getElementById('short-url-input').value.trim();
-  const sessionId='s_'+Date.now().toString(36);
-  await sessionRef.update({name,phase:'ideas',shortUrl,sessionId});
-  generateAccessLinks();
-  toast('Session started!');
-}
-
-async function startSession(){
-  const name=document.getElementById('session-name').value.trim()||'Feature Ranker';
+  const name=document.getElementById('session-name').value.trim()||'Votrix';
   const shortUrl=document.getElementById('short-url-input').value.trim();
   const sessionId='s_'+Date.now().toString(36);
   await sessionRef.update({name,phase:'ideas',shortUrl,sessionId});
@@ -588,10 +658,6 @@ function renderResults(){
       </div>
       <div class="result-track"><div class="result-fill" style="width:${Math.round((i.votes||0)/max*100)}%"></div></div>
     </div>`).join('');
-  // Move to reset step after showing results
-  if(state.phase==='closed'&&currentStep===3){
-    // show download button
-  }
 }
 
 // ── PANE 4: RESET ─────────────────────────────────────────
@@ -604,15 +670,16 @@ function exportCSV(){
   const ideas=Object.values(state.ideas).sort((a,b)=>(b.votes||0)-(a.votes||0));
   const total=ideas.reduce((s,i)=>s+(i.votes||0),0);
   const date=new Date().toLocaleDateString('en-US');
-  let csv=`Session,${state.name}\nDate,${date}\nParticipants,${state.participants}\nVoted,${state.votedCount||0}\n\nRank,Title,Details,Author,Votes ($),Share (%)\n`;
+  const t=s=>String(s||'').replace(/\t/g,' ');
+  let csv=`Session\t${t(state.name)}\nDate\t${date}\nParticipants\t${state.participants}\nVoted\t${state.votedCount||0}\n\nRank\tTitle\tDetails\tAuthor\tVotes ($)\tShare (%)\n`;
   ideas.forEach((idea,idx)=>{
     const pct=total>0?Math.round((idea.votes||0)/total*100):0;
-    csv+=`${idx+1},"${idea.title}","${idea.desc||''}","${idea.author}",${idea.votes||0},${pct}%\n`;
+    csv+=`${idx+1}\t${t(idea.title)}\t${t(idea.desc||'')}\t${t(idea.author)}\t${idea.votes||0}\t${pct}%\n`;
   });
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const blob=new Blob(['﻿'+csv],{type:'text/tab-separated-values;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download=`${state.name.replace(/\s+/g,'-').toLowerCase()}_results.csv`;
+  a.href=url;a.download=`${state.name.replace(/\s+/g,'-').toLowerCase()}_results.tsv`;
   a.click();URL.revokeObjectURL(url);
   toast('CSV downloaded!');
 }
@@ -620,8 +687,17 @@ function exportCSV(){
 // ── RESET ─────────────────────────────────────────────────
 function openResetModal(){document.getElementById('reset-modal').classList.add('open');}
 function closeModal(){document.getElementById('reset-modal').classList.remove('open');}
-function confirmReset(){
-  sessionRef.set({name:state.name,phase:'setup',ideas:null,participants:0,votedCount:0,sessionId:'s_'+Date.now().toString(36)});
+async function confirmReset(){
+  await sessionRef.update({
+    name:state.name,
+    phase:'setup',
+    ideas:null,
+    participants:0,
+    votedCount:0,
+    sessionId:'s_'+Date.now().toString(36),
+    ballots:null
+  });
+  await db.ref('presence').remove();
   closeModal();
   toast('Session reset');
 }
@@ -642,7 +718,6 @@ function drawQR(url){
   if(!canvas)return;
   const wrapper=canvas.parentNode;
 
-  // Remove old QR element if re-generating
   const old=document.getElementById('qr-generated');
   if(old)old.remove();
 
@@ -652,27 +727,21 @@ function drawQR(url){
   wrapper.insertBefore(div,canvas);
   canvas.style.display='none';
 
-  const script=document.createElement('script');
-  script.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-  script.onload=()=>{
-    new QRCode(div,{
-      text:url,
-      width:200,
-      height:200,
-      colorDark:'#1A1814',
-      colorLight:'#FFFFFF',
-      correctLevel:QRCode.CorrectLevel.M
-    });
-  };
-  // Only add script if not already loaded
-  if(!window.QRCode){
-    document.head.appendChild(script);
-  } else {
+  const render=()=>{
     new QRCode(div,{
       text:url,width:200,height:200,
       colorDark:'#1A1814',colorLight:'#FFFFFF',
       correctLevel:QRCode.CorrectLevel.M
     });
+  };
+
+  if(!window.QRCode){
+    const script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    script.onload=render;
+    document.head.appendChild(script);
+  }else{
+    render();
   }
 }
 
@@ -686,28 +755,28 @@ function copyURL(){
 function showIdeaStats(id){
   const idea=state.ideas[id];
   if(!idea)return;
-  const amounts=Object.values(idea.voteAmounts||{}).map(Number).filter(v=>v>0);
+  const amounts=Object.values(ballots).map(b=>(b[id]||0)).filter(v=>v>0);
   const n=amounts.length;
   const total=idea.votes||0;
 
   let body='';
   if(!n){
     body='<div class="empty">No individual votes recorded yet.</div>';
-  } else {
+  }else{
     const avg=total/n;
     const sorted=[...amounts].sort((a,b)=>a-b);
     const median=n%2===0?(sorted[n/2-1]+sorted[n/2])/2:sorted[Math.floor(n/2)];
     const min=sorted[0];
     const max=sorted[n-1];
 
-    const stat=(label,val)=>`
+    const stat=(label,val,dollar=true)=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--border)">
         <span style="font-size:13px;color:var(--text2)">${label}</span>
-        <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--text)">$${typeof val==='number'?Math.round(val*10)/10:val}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--text)">${dollar?'$':''}${typeof val==='number'?Math.round(val*10)/10:val}</span>
       </div>`;
 
     body=`
-      ${stat('Voters who allocated',n)}
+      ${stat('Voters',n,false)}
       ${stat('Total allocated',''+total)}
       ${stat('Average',avg)}
       ${stat('Median',median)}
