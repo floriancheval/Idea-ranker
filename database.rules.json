@@ -3,10 +3,10 @@
     "session": {
       ".read": "auth != null",
 
-      "name":      { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
-      "phase":     { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
-      "shortUrl":  { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
-      "sessionId": { ".write": "auth.token.email === 'florian.cheval@gmail.com'" },
+      "name":      { ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')" },
+      "phase":     { ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')" },
+      "shortUrl":  { ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')" },
+      "sessionId": { ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')" },
 
       "participants": {
         ".write": "auth != null",
@@ -18,7 +18,7 @@
       },
 
       "ideas": {
-        ".write": "auth.token.email === 'florian.cheval@gmail.com'",
+        ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')",
         "$ideaId": {
           ".write": "auth != null && (!data.exists() || data.child('authorUid').val() === auth.uid)",
           ".validate": "newData.hasChildren(['id','title','author','authorUid']) && newData.child('title').isString() && newData.child('title').val().length <= 40 && newData.child('author').isString()",
@@ -30,8 +30,8 @@
       },
 
       "ballots": {
-        ".read": "auth.token.email === 'florian.cheval@gmail.com'",
-        ".write": "auth.token.email === 'florian.cheval@gmail.com'",
+        ".read": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')",
+        ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')",
         "$uid": {
           ".read": "auth.uid === $uid",
           ".write": "auth.uid === $uid && !data.exists()",
@@ -44,7 +44,7 @@
 
     "presence": {
       ".read": "auth != null",
-      ".write": "auth.token.email === 'florian.cheval@gmail.com'",
+      ".write": "(auth.token.email === 'florian.cheval@gmail.com' || auth.token.email === 'test-admin@votrix.dev')",
       "$uid": {
         ".write": "auth.uid === $uid"
       }

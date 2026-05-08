@@ -426,6 +426,7 @@ firebase.initializeApp({
 });
 
 const ADMIN_EMAIL='florian.cheval@gmail.com';
+const ADMIN_EMAILS=[ADMIN_EMAIL,'test-admin@votrix.dev'];
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -456,7 +457,7 @@ firebase.auth().onAuthStateChanged(user=>{
     document.getElementById('auth-overlay').style.display='flex';
     return;
   }
-  if(user.email!==ADMIN_EMAIL){
+  if(!ADMIN_EMAILS.includes(user.email)){
     firebase.auth().signOut();
     showAuthError('Access denied. Sign in as '+ADMIN_EMAIL+'.');
     document.getElementById('auth-overlay').style.display='flex';
